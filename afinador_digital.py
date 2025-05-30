@@ -6,12 +6,14 @@ import queue
 import io
 from scipy.io.wavfile import write as wav_write, read as wav_read
 
-# Intentar importar sounddevice para grabar/reproducir
 try:
     import sounddevice as sd
     sounddevice_available = True
 except Exception:
     sounddevice_available = False
+
+.
+
 
 # Configuración
 SAMPLE_RATE = 44100

@@ -6,14 +6,12 @@ import queue
 import io
 from scipy.io.wavfile import write as wav_write, read as wav_read
 
-try:
-    import sounddevice as sd
-    sounddevice_available = True
-except Exception:
-    sounddevice_available = False
-
-.
-
+# try:
+#     import sounddevice as sd
+#     sounddevice_available = True
+# except Exception:
+#     sounddevice_available = False
+sounddevice_available = False  # Forzar False porque no usamos sounddevice
 
 # Configuración
 SAMPLE_RATE = 44100
@@ -49,11 +47,11 @@ if 'recorded_chunks' not in st.session_state:
 if 'audio_bytes' not in st.session_state:
     st.session_state.audio_bytes = None
 
-def audio_callback(indata, frames, time, status):
-    if status:
-        st.error(f"Error en captura de audio: {status}")
-    audio_queue.put(indata.copy()[:, 0])
-    st.session_state.recorded_chunks.append(indata.copy())
+# def audio_callback(indata, frames, time, status):
+#     if status:
+#         st.error(f"Error en captura de audio: {status}")
+#     audio_queue.put(indata.copy()[:, 0])
+#     st.session_state.recorded_chunks.append(indata.copy())
 
 def get_spectrum(data, sample_rate=SAMPLE_RATE):
     N = len(data)
@@ -186,103 +184,103 @@ st.markdown("""
 st.title("🎙️ Analizador de Frecuencias con Grabación y Carga de WAV")
 st.markdown("Habla, reproduce un sonido, usa el generador de tonos o carga un archivo WAV para analizar.")
 
-# Sección: Grabación y Micrófono
-st.subheader("Grabar Audio desde el Micrófono")
-if sounddevice_available:
-    mic_button_label = "Detener Grabación y Micrófono" if st.session_state.mic_active else "Activar Micrófono y Comenzar Grabación"
-    if st.button(mic_button_label):
-        if st.session_state.mic_active:
-            if st.session_state.stream:
-                st.session_state.stream.stop()
-                st.session_state.stream.close()
-            st.session_state.mic_active = False
-            st.session_state.is_running = False
+# # Sección: Grabación y Micrófono
+# st.subheader("Grabar Audio desde el Micrófono")
+# if sounddevice_available:
+#     mic_button_label = "Detener Grabación y Micrófono" if st.session_state.mic_active else "Activar Micrófono y Comenzar Grabación"
+#     if st.button(mic_button_label):
+#         if st.session_state.mic_active:
+#             if st.session_state.stream:
+#                 st.session_state.stream.stop()
+#                 st.session_state.stream.close()
+#             st.session_state.mic_active = False
+#             st.session_state.is_running = False
 
-            if len(st.session_state.recorded_chunks) > 0:
-                audio_data = np.concatenate(st.session_state.recorded_chunks, axis=0)
-                audio_int16 = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
-                wav_io = io.BytesIO()
-                wav_write(wav_io, SAMPLE_RATE, audio_int16)
-                wav_io.seek(0)
-                st.session_state.audio_bytes = wav_io.read()
-                st.success("Grabación finalizada y guardada")
-            else:
-                st.warning("No se grabó audio")
+#             if len(st.session_state.recorded_chunks) > 0:
+#                 audio_data = np.concatenate(st.session_state.recorded_chunks, axis=0)
+#                 audio_int16 = np.int16(audio_data / np.max(np.abs(audio_data)) * 32767)
+#                 wav_io = io.BytesIO()
+#                 wav_write(wav_io, SAMPLE_RATE, audio_int16)
+#                 wav_io.seek(0)
+#                 st.session_state.audio_bytes = wav_io.read()
+#                 st.success("Grabación finalizada y guardada")
+#             else:
+#                 st.warning("No se grabó audio")
 
-            st.session_state.recorded_chunks = []
+#             st.session_state.recorded_chunks = []
 
-        else:
-            try:
-                st.session_state.recorded_chunks = []
-                st.session_state.stream = sd.InputStream(
-                    samplerate=SAMPLE_RATE,
-                    blocksize=BUFFER_SIZE,
-                    channels=1,
-                    callback=audio_callback)
-                st.session_state.stream.start()
-                st.session_state.mic_active = True
-                st.session_state.is_running = True
-                st.session_state.audio_bytes = None
-            except Exception as e:
-                st.error(f"Error al iniciar captura de audio: {e}")
-else:
-    st.info("Grabación en vivo no disponible en Streamlit Cloud. Por favor, carga un archivo WAV para analizar.")
+#         else:
+#             try:
+#                 st.session_state.recorded_chunks = []
+#                 st.session_state.stream = sd.InputStream(
+#                     samplerate=SAMPLE_RATE,
+#                     blocksize=BUFFER_SIZE,
+#                     channels=1,
+#                     callback=audio_callback)
+#                 st.session_state.stream.start()
+#                 st.session_state.mic_active = True
+#                 st.session_state.is_running = True
+#                 st.session_state.audio_bytes = None
+#             except Exception as e:
+#                 st.error(f"Error al iniciar captura de audio: {e}")
+# else:
+#     st.info("Grabación en vivo no disponible en Streamlit Cloud. Por favor, carga un archivo WAV para analizar.")
 
-# Sección: Análisis en Vivo
-if sounddevice_available and st.session_state.mic_active and st.session_state.is_running:
-    live_container = st.container()
-    with live_container:
-        st.markdown("### Análisis del Sonido en Vivo")
-        try:
-            audio_data = audio_queue.get_nowait()
-            yf, xf = get_spectrum(audio_data)
-            max_amplitude = np.max(yf)
+# # Sección: Análisis en Vivo
+# if sounddevice_available and st.session_state.mic_active and st.session_state.is_running:
+#     live_container = st.container()
+#     with live_container:
+#         st.markdown("### Análisis del Sonido en Vivo")
+#         try:
+#             audio_data = audio_queue.get_nowait()
+#             yf, xf = get_spectrum(audio_data)
+#             max_amplitude = np.max(yf)
 
-            freq = get_dominant_freq(xf, yf)
+#             freq = get_dominant_freq(xf, yf)
 
-            if freq > 0 and max_amplitude > AMPLITUDE_THRESHOLD:
-                sound_type, description, voice_type, age_group = analyze_sound(freq, yf, xf)
-                st.session_state.last_freq = freq
-                st.session_state.last_yf = yf
-                st.session_state.last_xf = xf
-                st.session_state.last_analysis = description
-                st.session_state.last_sound_type = sound_type
-                st.session_state.last_voice_type = voice_type
-                st.session_state.last_age_group = age_group
-            else:
-                sound_type = st.session_state.last_sound_type
-                description = st.session_state.last_analysis
-                voice_type = st.session_state.last_voice_type
-                age_group = st.session_state.last_age_group
-                yf = st.session_state.last_yf
-                xf = st.session_state.last_xf
-                freq = st.session_state.last_freq
+#             if freq > 0 and max_amplitude > AMPLITUDE_THRESHOLD:
+#                 sound_type, description, voice_type, age_group = analyze_sound(freq, yf, xf)
+#                 st.session_state.last_freq = freq
+#                 st.session_state.last_yf = yf
+#                 st.session_state.last_xf = xf
+#                 st.session_state.last_analysis = description
+#                 st.session_state.last_sound_type = sound_type
+#                 st.session_state.last_voice_type = voice_type
+#                 st.session_state.last_age_group = age_group
+#             else:
+#                 sound_type = st.session_state.last_sound_type
+#                 description = st.session_state.last_analysis
+#                 voice_type = st.session_state.last_voice_type
+#                 age_group = st.session_state.last_age_group
+#                 yf = st.session_state.last_yf
+#                 xf = st.session_state.last_xf
+#                 freq = st.session_state.last_freq
 
-            fig = plot_spectrum(yf, xf, freq)
-            st.plotly_chart(fig, use_container_width=True)
+#             fig = plot_spectrum(yf, xf, freq)
+#             st.plotly_chart(fig, use_container_width=True)
 
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Tipo de Sonido", sound_type, delta_color="off")
-            with col2:
-                st.metric("Frecuencia Dominante", f"{freq:.2f} Hz" if freq > 0 else "N/A")
-            with col3:
-                st.metric("Amplitud Máxima", f"{max_amplitude:.2f}" if freq > 0 else "N/A")
+#             col1, col2, col3 = st.columns(3)
+#             with col1:
+#                 st.metric("Tipo de Sonido", sound_type, delta_color="off")
+#             with col2:
+#                 st.metric("Frecuencia Dominante", f"{freq:.2f} Hz" if freq > 0 else "N/A")
+#             with col3:
+#                 st.metric("Amplitud Máxima", f"{max_amplitude:.2f}" if freq > 0 else "N/A")
 
-            if sound_type == "Voz humana (probablemente hablando)":
-                col4, col5 = st.columns(2)
-                with col4:
-                    st.metric("Tipo de Voz", voice_type or "N/A", delta_color="off")
-                with col5:
-                    st.metric("Grupo de Edad", age_group or "N/A", delta_color="off")
+#             if sound_type == "Voz humana (probablemente hablando)":
+#                 col4, col5 = st.columns(2)
+#                 with col4:
+#                     st.metric("Tipo de Voz", voice_type or "N/A", delta_color="off")
+#                 with col5:
+#                     st.metric("Grupo de Edad", age_group or "N/A", delta_color="off")
 
-            if freq == 0:
-                st.markdown("**Esperando sonido...**")
+#             if freq == 0:
+#                 st.markdown("**Esperando sonido...**")
 
-        except queue.Empty:
-            st.markdown("**Cola de audio vacía - No se recibieron datos.**")
-        except Exception as e:
-            st.error(f"Error: {e}")
+#         except queue.Empty:
+#             st.markdown("**Cola de audio vacía - No se recibieron datos.**")
+#         except Exception as e:
+#             st.error(f"Error: {e}")
 
 # Sección: Cargar Archivo WAV
 st.subheader("Cargar Archivo WAV para Análisis")
@@ -335,28 +333,28 @@ if audio_loaded:
         with col5:
             st.metric("Grupo de Edad", age_group or "N/A", delta_color="off")
 
-# Sección: Generar Tono para Pruebas
-st.subheader("Generar Tono para Pruebas")
-frequency = st.slider("Selecciona la frecuencia del tono (Hz)", FREQUENCY_RANGE[0], FREQUENCY_RANGE[1], 440)
-duration = 2
+# # Sección: Generar Tono para Pruebas
+# st.subheader("Generar Tono para Pruebas")
+# frequency = st.slider("Selecciona la frecuencia del tono (Hz)", FREQUENCY_RANGE[0], FREQUENCY_RANGE[1], 440)
+# duration = 2
 
-if sounddevice_available:
-    if st.button("Reproducir Tono"):
-        t = np.linspace(0, duration, int(SAMPLE_RATE * duration), False)
-        tone = 0.5 * np.sin(2 * np.pi * frequency * t)
-        sd.play(tone, SAMPLE_RATE)
-        st.write(f"Reproduciendo tono de {frequency} Hz durante {duration} segundos...")
-else:
-    st.info("Reproducción de tono no disponible en Streamlit Cloud.")
+# if sounddevice_available:
+#     if st.button("Reproducir Tono"):
+#         t = np.linspace(0, duration, int(SAMPLE_RATE * duration), False)
+#         tone = 0.5 * np.sin(2 * np.pi * frequency * t)
+#         sd.play(tone, SAMPLE_RATE)
+#         st.write(f"Reproduciendo tono de {frequency} Hz durante {duration} segundos...")
+# else:
+#     st.info("Reproducción de tono no disponible en Streamlit Cloud.")
 
-# Sección: Reproducción y Descarga de Grabación
-if st.session_state.audio_bytes:
-    st.subheader("Reproducción de Audio Grabado")
-    st.audio(st.session_state.audio_bytes, format="audio/wav")
-    st.download_button("Descargar Audio Grabado", data=st.session_state.audio_bytes, file_name="grabacion.wav", mime="audio/wav")
+# # Sección: Reproducción y Descarga de Grabación
+# if st.session_state.audio_bytes:
+#     st.subheader("Reproducción de Audio Grabado")
+#     st.audio(st.session_state.audio_bytes, format="audio/wav")
+#     st.download_button("Descargar Audio Grabado", data=st.session_state.audio_bytes, file_name="grabacion.wav", mime="audio/wav")
 
-# Limpieza al cerrar
-if 'stream' in st.session_state and st.session_state.stream and not st.session_state.mic_active:
-    st.session_state.stream.stop()
-    st.session_state.stream.close()
-    st.session_state.stream = None
+# # Limpieza al cerrar
+# if 'stream' in st.session_state and st.session_state.stream and not st.session_state.mic_active:
+#     st.session_state.stream.stop()
+#     st.session_state.stream.close()
+#     st.session_state.stream = None
